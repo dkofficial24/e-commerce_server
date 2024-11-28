@@ -3,7 +3,7 @@ const Product = require('../models/product');
 // Get all products
 const getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find().populate('category');
+    const products = await Product.find().populate('categoryId'); // Populate categoryId if it's a reference
     res.json(products);
   } catch (error) {
     next(error); // Pass the error to the error handler
@@ -13,7 +13,7 @@ const getProducts = async (req, res, next) => {
 // Get product by ID
 const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category');
+    const product = await Product.findById(req.params.id).populate('categoryId'); // Populate categoryId if needed
     if (!product) {
       const err = new Error('Product not found');
       err.status = 404;
@@ -28,8 +28,32 @@ const getProductById = async (req, res, next) => {
 // Add a new product
 const addProduct = async (req, res, next) => {
   try {
-    const { name, description, price, category } = req.body;
-    const product = new Product({ name, description, price, category });
+    const {
+      id, // Optional
+      name,
+      price,
+      image, // Optional
+      description,
+      discountAmount, // Optional
+      categoryId,
+      stock,
+      created, // Optional
+      modified, // Optional
+    } = req.body;
+
+    const product = new Product({
+      id,
+      name,
+      price,
+      image,
+      description,
+      discountAmount,
+      categoryId,
+      stock,
+      created: created || Date.now(), // Use current timestamp if not provided
+      modified: modified || Date.now(), // Use current timestamp if not provided
+    });
+
     await product.save();
     res.status(201).json(product);
   } catch (error) {
@@ -40,12 +64,34 @@ const addProduct = async (req, res, next) => {
 // Update a product
 const updateProduct = async (req, res, next) => {
   try {
-    const { name, description, price, category } = req.body;
+    const {
+      id, // Optional
+      name,
+      price,
+      image, // Optional
+      description,
+      discountAmount, // Optional
+      categoryId,
+      stock,
+      modified, // Optional
+    } = req.body;
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      { name, description, price, category },
-      { new: true }
+      {
+        id,
+        name,
+        price,
+        image,
+        description,
+        discountAmount,
+        categoryId,
+        stock,
+        modified: modified || Date.now(), // Update modified timestamp if not provided
+      },
+      { new: true } // Return the updated product
     );
+
     if (!product) {
       const err = new Error('Product not found');
       err.status = 404;
