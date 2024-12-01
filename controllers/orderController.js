@@ -1,6 +1,7 @@
 const Order = require('../models/order');  // Import the Order model
 const Cart = require('../models/cart');    // Import the Cart model
 const Product = require('../models/product'); // Import the Product model
+const User = require('../models/user');
 
 // Place Order
 
@@ -20,7 +21,7 @@ const placeOrder = async (req, res) => {
     // Ensure all products exist
     const orderItems = items.map(item => {
       const product = productDetails.find(prod => prod._id.toString() === item.product);
-      
+
       // If product is not found, return an error
       if (!product) {
         throw new Error(`Product not found: ${item.product}`);
@@ -44,13 +45,24 @@ const placeOrder = async (req, res) => {
     // Calculate total amount for the order
     const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
+    // If no shippingAddress is provided in the request, get it from the user's profile
+    let finalShippingAddress = shippingAddress;
+
+    if (!finalShippingAddress) {
+      const user = await User.findById(userId);
+      if (!user || !user.shippingAddress) {
+        return res.status(400).json({ message: 'Shipping address is required and not available in user profile' });
+      }
+      finalShippingAddress = user.shippingAddress; // Use the user's saved shipping address
+    }
+
     // Create the order
     const order = new Order({
       orderNumber: `ORD-${Date.now()}`,
       user: userId,
       items: orderItems,
       totalAmount,
-      shippingAddress,
+      shippingAddress: finalShippingAddress,
     });
 
     // Save the order
@@ -62,8 +74,6 @@ const placeOrder = async (req, res) => {
     res.status(500).json({ message: error.message || 'Error placing order' });
   }
 };
-
-module.exports = { placeOrder };
 
 
 // Get User Orders

@@ -58,8 +58,9 @@ const getUserProfile = async (req, res, next) => {
     try {
       const userId = req.user.id;  // Get the user ID from the authenticated user
   
-      // Find the user by their ID
-      const user = await User.findById(userId).select('-password');  // Exclude password from the response
+      // Find the user by their ID and explicitly select the fields you need
+      const user = await User.findById(userId).select('name email mobile dob shippingAddress');  // Explicitly include the fields
+  
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -70,6 +71,7 @@ const getUserProfile = async (req, res, next) => {
       next(error); // Pass errors to the error-handling middleware
     }
   };
+  
 
 module.exports = {
   updateUserProfile,
