@@ -9,43 +9,44 @@ const handleError = (res, error, statusCode = 500) => {
 // Add item to cart
 const addItemToCart = async (req, res, next) => {
   try {
-    const { productId, quantity, price, productName, productImg, discountAmount } = req.body;
+    const { productId, quantity } = req.body;  // Removed productName, productImg, and discountAmount
     const userId = req.user.id;
 
+    // Find the user's cart
     let cart = await Cart.findOne({ user: userId });
 
+    // If no cart found, create a new one
     if (!cart) {
       cart = new Cart({ user: userId, items: [] });
     }
 
-    const itemIndex = cart.items.findIndex((item) => item.product.id === productId);
+    // Check if the product is already in the cart
+    const itemIndex = cart.items.findIndex((item) => item.product.toString() === productId);
+    console.log("addItemCart index: " + itemIndex);
 
     if (itemIndex > -1) {
-      // Update quantity and timestamp
+      // Update the quantity if the item already exists in the cart
       cart.items[itemIndex].quantity += quantity;
       cart.items[itemIndex].updatedAt = Date.now();
     } else {
-      // Add new item
+      // Add new item to the cart
       cart.items.push({
         product: productId,
         quantity,
-        price,
-        productName,
-        productImg,
-        discountAmount,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     }
 
+    // Save the updated cart
     await cart.save();
-    res.status(201).json(cart);
+    res.status(201).json({ message: 'Item added to cart successfully', cart });
   } catch (error) {
     handleError(res, error);
   }
 };
 
-// Fetch all cart items for a user
+
 const fetchCartItems = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -55,14 +56,52 @@ const fetchCartItems = async (req, res, next) => {
       return res.status(404).json({ message: 'Cart is empty' });
     }
 
-    res.json(cart.items);
+    // Filter out products that no longer exist in the catalog
+    const updatedItems = cart.items.filter(item => {
+      return item.product !== null; // Make sure product exists
+    });
+
+    // If some products were removed, notify the user
+    if (updatedItems.length < cart.items.length) {
+      return res.status(200).json({
+        message: 'Some products in your cart are no longer available and have been removed.',
+        cart: updatedItems
+      });
+    }
+
+    // Calculate the subtotal and total discount
+    const subtotal = updatedItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+    const totalDiscount = updatedItems.reduce((total, item) => total + (item.product.discountAmount * item.quantity), 0);
+
+    const response = {
+      user: userId,
+      subtotal,
+      totalDiscount,
+      items: updatedItems.map(item => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name,
+          image: item.product.image,
+          price: item.product.price,
+          discountAmount: item.product.discountAmount,
+        },
+        quantity: item.quantity,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      }))
+    };
+
+    res.json(response);
   } catch (error) {
     handleError(res, error);
   }
 };
 
-// Update cart item quantity
-const updateCartItemQuantity = async (req, res, next) => {
+
+
+
+
+const updateCartItemQuantity = async (req, res) => {
   try {
     const userId = req.user.id;
     const { productId, newQuantity } = req.body;
@@ -89,11 +128,11 @@ const updateCartItemQuantity = async (req, res, next) => {
   }
 };
 
-// Remove product from cart
-const removeProductFromCart = async (req, res, next) => {
+
+const removeProductFromCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId } = req.body;
+    const { productId } = req.params;
 
     const cart = await Cart.findOne({ user: userId });
 
@@ -102,7 +141,12 @@ const removeProductFromCart = async (req, res, next) => {
     }
 
     const initialItemCount = cart.items.length;
-    cart.items = cart.items.filter((item) => item.product.toString() !== productId);
+    console.log("ProductId:"+productId);
+    cart.items = cart.items.filter((item) =>{
+      console.log(item.toString());
+      console.log("ProductIdStr:"+item.product.toString());
+      return item.product.toString() !== productId;
+    });
 
     if (cart.items.length === initialItemCount) {
       return res.status(404).json({ message: 'Product not found in cart' });
@@ -111,12 +155,13 @@ const removeProductFromCart = async (req, res, next) => {
     await cart.save();
     res.json({ message: 'Product removed from cart', cart });
   } catch (error) {
-    handleError(res, error);
+    console.error(error);
+    res.status(500).json({ message: 'Error removing product from cart' });
   }
 };
 
-// Clear cart for a user
-const clearUserCart = async (req, res, next) => {
+
+const clearUserCart = async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -134,6 +179,9 @@ const clearUserCart = async (req, res, next) => {
     handleError(res, error);
   }
 };
+
+
+
 
 module.exports = {
   addItemToCart,
