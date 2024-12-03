@@ -4,7 +4,8 @@ const {
   fetchCartItems, 
   removeProductFromCart, 
   updateCartItemQuantity, 
-  clearUserCart 
+  clearUserCart,
+  updateCart
 } = require('../controllers/cart_controller');
 const authenticateUser = require('../middlewares/authenticate_user');
 const authenticateApiKey = require('../middlewares/authenticate_api_key');
@@ -25,5 +26,7 @@ router.delete('/:productId', authenticateUser, authenticateApiKey, removeProduct
 
 // Clear the entire cart for a user
 router.delete('/', authenticateUser, authenticateApiKey, clearUserCart);
+
+router.put('/', authenticateUser, authenticateApiKey, updateCart);
 
 module.exports = router;

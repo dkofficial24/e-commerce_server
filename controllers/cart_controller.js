@@ -61,14 +61,6 @@ const fetchCartItems = async (req, res, next) => {
       return item.product !== null; // Make sure product exists
     });
 
-    // If some products were removed, notify the user
-    if (updatedItems.length < cart.items.length) {
-      return res.status(200).json({
-        message: 'Some products in your cart are no longer available and have been removed.',
-        cart: updatedItems
-      });
-    }
-
     // Calculate the subtotal and total discount
     const subtotal = updatedItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
     const totalDiscount = updatedItems.reduce((total, item) => total + (item.product.discountAmount * item.quantity), 0);
@@ -90,6 +82,11 @@ const fetchCartItems = async (req, res, next) => {
         updatedAt: item.updatedAt,
       }))
     };
+
+    // Add a warning message if some products were removed
+    if (updatedItems.length < cart.items.length) {
+      response.message = 'Some products in your cart are no longer available and have been removed.';
+    }
 
     res.json(response);
   } catch (error) {
@@ -180,6 +177,44 @@ const clearUserCart = async (req, res) => {
   }
 };
 
+const updateCart = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { productId, quantity } = req.body; // Expect productId and quantity in request body
+
+    // Validate input
+    if (!productId || quantity == null) {
+      return res.status(400).json({ message: 'Product ID and quantity are required' });
+    }
+
+    const cart = await Cart.findOne({ user: userId });
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
+    }
+
+    // Find the product in the cart
+    const itemIndex = cart.items.findIndex((item) => item.product.toString() === productId);
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: 'Product not found in cart' });
+    }
+
+    // Update the quantity
+    cart.items[itemIndex].quantity = quantity;
+    cart.items[itemIndex].updatedAt = Date.now();
+
+    // Save the updated cart
+    await cart.save();
+
+    res.json({ message: 'Cart updated successfully', cart });
+  } catch (error) {
+    console.error('Error updating cart:', error);
+    res.status(500).json({ message: 'An error occurred while updating the cart' });
+  }
+};
+
+
 
 
 
@@ -189,4 +224,5 @@ module.exports = {
   updateCartItemQuantity,
   removeProductFromCart,
   clearUserCart,
+  updateCart
 };
