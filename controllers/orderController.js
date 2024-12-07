@@ -98,6 +98,8 @@ const updateOrderStatus = async (req, res) => {
     const { id } = req.params; // 'id' is the orderNumber in your case
     const { status } = req.body;
 
+    console.log("Status "+status);
+
     // Find the order by orderNumber (not by default _id)
     const order = await Order.findOne({ orderNumber: id });
 
@@ -106,9 +108,9 @@ const updateOrderStatus = async (req, res) => {
     }
 
     // Update order status
-    order.status = status;
+    order.orderStatus = status;
     await order.save();
-
+    console.log("Status "+order.status);
     res.json({ message: 'Order status updated successfully', order });
   } catch (error) {
     console.error(error);
